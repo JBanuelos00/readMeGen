@@ -2,16 +2,18 @@ const inquirer = require("inquirer");
 const axios = require("axios");
 const fs = require("fs");
 const util = require("util");
+const api = require("./utils/api");
+const genMkDwn = require("./utils/generateMarkdown");
 
-const writeFileAsync = util.promisify(fs.writeFile);
+const writeToFile = util.promisify(fs.writeFile);
 
 const questions = [
-    // The README will be populated with the following:
-
-    // * At least one badge
-    // * Table of Contents
-    //   * User GitHub profile picture
-
+    {
+        type: "input",
+        name: "fileName",
+        message: "Please type in the filname for your Readme."
+    },
+    //   * User GitHub Profile
     {
         type: "input",
         name: "userName",
@@ -73,63 +75,31 @@ const questions = [
 
 ];
 
-inquirer.prompt(questions)
-    .then(function ({
-        userName,
-        email,
-        projTitle,
-        projDescr,
-        use,
-        installInstr,
-        license,
-        contribs,
-        tests
-    }) {
-        console.log(`Hi ${userName}`);
+function promptUser() {
+    return inquirer.prompt(questions);
+}
 
-        const queryUrl = `https://api.github.com/users/${userName}/repos?per_page=100`;
+async function init() {
+    console.log("Welcome to my Readme Generator");
 
-        axios.get(queryUrl).then(function (res) {
-            const profPic = res.data.avatar_url;
+    try {
+        const answers = await promptUser();
 
-            const readMeGen = `
-            # ${projTitle}
-            
-            ![Profile Picture](${profPic} =250x)
-            
-            ${projDescr}
-        
-            ## Table of Contents
-            - [Installation](#Installation)
-            - [Usage](#Usage)
-            - [License](#License)
-            - [Contributing](#Contributing)
-            - [Test](#Test)
-            - [Questions](#FAQs)
-        
-            ## Usage
-            ${use}
-            ## Installation
-            ${installInstr}
-            ## License
-            ${license}
-            ## Contributing
-            ${contribs}
-            ## Test
-            ${tests}
-            ## Contact
-            [${email}](mailto:${email})
-            
-        
-            `
-            writeFileAsync("myReadMeGen.txt", readMeGen, function (err) {
-                if (err) {
-                    throw err;
-                }
+        const queryURL = api.getUser(answers);
 
-                console.log(`ReadMe has been successfully created`);
-            });
+        axios.get(queryURL).then(function (res) {
+            console.log("Accessing your gitHub profile and generating "+`${answers.fileName}.md`);
 
+            const mkDwn = genMkDwn(answers);
 
+            writeToFile(`${answers.fileName}.md`, mkDwn);
+
+            console.log("Readme successfully generated!");
         });
-    });
+
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+init();
